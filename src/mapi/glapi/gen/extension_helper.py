@@ -133,7 +133,7 @@ def condition_for_function(f, abi, all_not_in_ABI):
     for n in f.entry_points:
         [category, num] = api.get_category_for_name( n )
         if category not in abi:
-            condition.append( 'defined(need_%s)' % (gl_XML.real_category_name( category )) )
+            condition.append(f'defined(need_{gl_XML.real_category_name(category)})')
         elif all_not_in_ABI:
             return []
 

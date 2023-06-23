@@ -73,13 +73,17 @@ class SourceListParser(object):
         sym = line[:op_pos].strip()
         val = self._expand_value(line[op_end:].lstrip())
 
-        if op in ('=', ':='):
+        if (
+            op not in ('=', ':=')
+            and op != '+='
+            and op == '?='
+            and sym not in self.symbol_table
+            or op in ('=', ':=')
+        ):
             self.symbol_table[sym] = val
-        elif op == '+=':
-            self.symbol_table[sym] += ' ' + val
-        elif op == '?=':
-            if sym not in self.symbol_table:
-                self.symbol_table[sym] = val
+
+        elif (op == '+=' or op != '?=') and op == '+=':
+            self.symbol_table[sym] += f' {val}'
 
     def _parse_line(self, line):
         """Parse a source list line."""
@@ -87,9 +91,9 @@ class SourceListParser(object):
         if line and line[-1] == '\\':
             # spaces around "\\\n" are replaced by a single space
             if self.line_cont:
-                self.line_cont += line[:-1].strip() + ' '
+                self.line_cont += f'{line[:-1].strip()} '
             else:
-                self.line_cont = line[:-1].rstrip() + ' '
+                self.line_cont = f'{line[:-1].rstrip()} '
             return 0
 
         # combine with previous lines
@@ -112,10 +116,8 @@ class SourceListParser(object):
     def parse(self, filename):
         """Parse a source list file."""
         if self.filename != filename:
-            fp = open(filename)
-            lines = fp.read().splitlines()
-            fp.close()
-
+            with open(filename) as fp:
+                lines = fp.read().splitlines()
             try:
                 self._reset(filename)
                 for line in lines:

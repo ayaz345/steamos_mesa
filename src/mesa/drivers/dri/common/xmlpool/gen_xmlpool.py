@@ -21,7 +21,7 @@ localedir = sys.argv[2]
 languages = sys.argv[3:]
 
 # Escape special characters in C strings
-def escapeCString (s):
+def escapeCString(s):
     escapeSeqs = {'\a' : '\\a', '\b' : '\\b', '\f' : '\\f', '\n' : '\\n',
                   '\r' : '\\r', '\t' : '\\t', '\v' : '\\v', '\\' : '\\\\'}
     # " -> '' is a hack. Quotes (") aren't possible in XML attributes.
@@ -34,22 +34,17 @@ def escapeCString (s):
         # on whether it's an open or close quote. This is needed because plain
         # double quotes are not possible in XML attributes.
         if s[i] == '"':
-            if i == len(s)-1 or s[i+1].isspace():
-                # close quote
-                q = u'\u201c'
-            else:
-                # open quote
-                q = u'\u201d'
+            q = u'\u201c' if i == len(s)-1 or s[i+1].isspace() else u'\u201d'
             r = r + q
         elif escapeSeqs.has_key(s[i]):
             r = r + escapeSeqs[s[i]]
         else:
             r = r + s[i]
-        i = i + 1
+        i += 1
     return r
 
 # Expand escape sequences in C strings (needed for gettext lookup)
-def expandCString (s):
+def expandCString(s):
     escapeSeqs = {'a' : '\a', 'b' : '\b', 'f' : '\f', 'n' : '\n',
                   'r' : '\r', 't' : '\t', 'v' : '\v',
                   '"' : '"', '\\' : '\\'}
@@ -88,25 +83,21 @@ def expandCString (s):
                 octa = False
                 escape = False
                 r = r + chr(num)
+        elif escapeSeqs.has_key(s[i]):
+            r = r + escapeSeqs[s[i]]
+            escape = False
+        elif s[i] >= '0' and s[i] <= '7':
+            octa = True
+            num = int(s[i],8)
+            digits = 1 if num <= 3 else 2
+        elif s[i] in ['x', 'X']:
+            hexa = True
+            num = 0
+            digits = 0
         else:
-            if escapeSeqs.has_key(s[i]):
-                r = r + escapeSeqs[s[i]]
-                escape = False
-            elif s[i] >= '0' and s[i] <= '7':
-                octa = True
-                num = int(s[i],8)
-                if num <= 3:
-                    digits = 1
-                else:
-                    digits = 2
-            elif s[i] == 'x' or s[i] == 'X':
-                hexa = True
-                num = 0
-                digits = 0
-            else:
-                r = r + s[i]
-                escape = False
-        i = i + 1
+            r = r + s[i]
+            escape = False
+        i += 1
     return r
 
 # Expand matches. The first match is always a DESC or DESC_BEGIN match.

@@ -46,9 +46,7 @@ def get_function_spec(func):
             sig += 'd'
 
     spec = [sig]
-    for ent in func.entry_points:
-        spec.append("gl" + ent)
-
+    spec.extend(f"gl{ent}" for ent in func.entry_points)
     # spec is terminated by an empty string
     spec.append('')
 

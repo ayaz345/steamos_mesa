@@ -43,10 +43,7 @@ def generate(env):
 
 def exists(env):
     # TODO: actually detect the presence of the headers
-    if env['platform'] in ('linux', 'freebsd', 'darwin'):
-        return True
-    else:
-        return False
+    return env['platform'] in ('linux', 'freebsd', 'darwin')
 
 
 # vim:set ts=4 sw=4 et:

@@ -72,7 +72,7 @@ class glx_enum_function(object):
                 [count, mode] = e.functions[ match_name ]
 
                 if mode_set and mode != self.mode:
-                    raise RuntimeError("Not all enums for %s have the same mode." % (func_name))
+                    raise RuntimeError(f"Not all enums for {func_name} have the same mode.")
 
                 self.mode = mode
 
@@ -91,10 +91,10 @@ class glx_enum_function(object):
 
 
     def signature( self ):
-        if self.sig == None:
+        if self.sig is None:
             self.sig = ""
             for i in self.count:
-                if i == None:
+                if i is None:
                     raise RuntimeError("i is None.  WTF?")
 
                 self.count[i].sort()
@@ -245,11 +245,10 @@ class glx_server_enum_function(glx_enum_function):
 
 
     def signature( self ):
-        if self.sig == None:
+        if self.sig is None:
             sig = glx_enum_function.signature(self)
 
-            p = self.function.variable_length_parameter()
-            if p:
+            if p := self.function.variable_length_parameter():
                 sig += "%u" % (p.size())
 
             self.sig = sig

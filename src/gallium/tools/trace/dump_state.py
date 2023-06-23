@@ -60,23 +60,7 @@ def serialize(obj):
     '''JSON serializer function for non-standard Python objects.'''
 
     if isinstance(obj, bytearray):
-        # TODO: Decide on a single way of dumping blobs
-        if False:
-            # Don't dump full blobs, but merely a description of their size and
-            # CRC32 hash.
-            crc32 = binascii.crc32(obj)
-            if crc32 < 0:
-                crc32 += 0x100000000
-            return 'blob(size=%u,crc32=0x%08x)' % (len(obj), crc32)
-        if True:
-            # Dump blobs as an array of 16byte hexadecimals
-            res = []
-            for i in range(0, len(obj), 16):
-                res.append(binascii.b2a_hex(obj[i: i+16]))
-            return res
-        # Dump blobs as a single hexadecimal string
-        return binascii.b2a_hex(obj)
-
+        return [binascii.b2a_hex(obj[i: i+16]) for i in range(0, len(obj), 16)]
     # If the object has a __json__ method, use it.
     try:
         method = obj.__json__
@@ -97,11 +81,11 @@ class Struct:
         '''Convert the structure to a standard Python dict, so it can be
         serialized.'''
 
-        obj = {}
-        for name, value in self.__dict__.items():
-            if not name.startswith('_'):
-                obj[name] = value
-        return obj
+        return {
+            name: value
+            for name, value in self.__dict__.items()
+            if not name.startswith('_')
+        }
 
     def __repr__(self):
         return repr(self.__json__())
@@ -129,9 +113,7 @@ class Translator(model.Visitor):
         self.result = node.name
     
     def visit_array(self, node):
-        array = []
-        for element in node.elements:
-            array.append(self.visit(element))
+        array = [self.visit(element) for element in node.elements]
         self.result = array
     
     def visit_struct(self, node):
@@ -367,11 +349,9 @@ class Context(Dispatcher):
 
         data = self.real.buffer_read(buffer)
         format = '4f'
-        index = 0
-        for offset in range(0, len(data), struct.calcsize(format)):
+        for index, offset in enumerate(range(0, len(data), struct.calcsize(format))):
             x, y, z, w = unpack_from(format, data, offset)
             sys.stdout.write('\tCONST[%2u] = {%10.4f, %10.4f, %10.4f, %10.4f}\n' % (index, x, y, z, w))
-            index += 1
         sys.stdout.flush()
 
     def _get_stage_state(self, shader):
@@ -436,7 +416,7 @@ class Context(Dispatcher):
         self._update(self._state.vertex_buffers, start_slot, num_buffers, buffers)
             
     def create_vertex_elements_state(self, num_elements, elements):
-        return elements[0:num_elements]
+        return elements[:num_elements]
 
     def bind_vertex_elements_state(self, state):
         self._state.vertex_elements = state
@@ -620,16 +600,12 @@ class Context(Dispatcher):
             assert src_box.height == 1
             assert src_box.depth == 1
             dst.data[dstx : dstx + src_box.width] = src.data[src_box.x : src_box.x + src_box.width]
-        pass
 
     def is_resource_referenced(self, texture, face, level):
         pass
     
     def get_transfer(self, texture, sr, usage, box):
-        if texture is None:
-            return None
-        transfer = Transfer(texture, sr, usage, box)
-        return transfer
+        return None if texture is None else Transfer(texture, sr, usage, box)
     
     def tex_transfer_destroy(self, transfer):
         self.interpreter.unregister_object(transfer)

@@ -78,9 +78,12 @@ def sexp_to_string(sexp):
         sub_result = sexp_to_string(s)
         if result == '':
             result = sub_result
-        elif '\n' not in result and '\n' not in sub_result and \
-                len(result) + len(sub_result) + 1 <= 70:
-            result += ' ' + sub_result
+        elif (
+            '\n' not in result
+            and '\n' not in sub_result
+            and len(result) + len(sub_result) <= 69
+        ):
+            result += f' {sub_result}'
         else:
             result += '\n' + sub_result
     return '({0})'.format(result.replace('\n', '\n '))

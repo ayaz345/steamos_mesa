@@ -110,11 +110,7 @@ class PrintGenericStubs(gl_XML.gl_print_base):
 
 
     def get_stack_size(self, f):
-        size = 0
-        for p in f.parameterIterator():
-            size += p.get_stack_size()
-
-        return size
+        return sum(p.get_stack_size() for p in f.parameterIterator())
 
 
     def printRealHeader(self):

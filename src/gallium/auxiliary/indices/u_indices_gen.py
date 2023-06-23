@@ -104,10 +104,7 @@ static u_generate_func  generate[OUT_COUNT][PV_COUNT][PV_COUNT][PRIM_COUNT];
 '''
 
 def vert( intype, outtype, v0 ):
-    if intype == GENERATE:
-        return '(' + outtype + ')(' + v0 + ')'
-    else:
-        return '(' + outtype + ')in[' + v0 + ']'
+    return f'({outtype})({v0})' if intype == GENERATE else f'({outtype})in[{v0}]'
 
 def point( intype, outtype, ptr, v0 ):
     print '      (' + ptr + ')[0] = ' + vert( intype, outtype, v0 ) + ';'
@@ -133,21 +130,20 @@ def do_line( intype, outtype, ptr, v0, v1, inpv, outpv ):
 def do_tri( intype, outtype, ptr, v0, v1, v2, inpv, outpv ):
     if inpv == outpv:
         tri( intype, outtype, ptr, v0, v1, v2 )
-    else: 
-        if inpv == FIRST:
-            tri( intype, outtype, ptr, v1, v2, v0 )
-        else:
-            tri( intype, outtype, ptr, v2, v0, v1 )
+    elif inpv == FIRST:
+        tri( intype, outtype, ptr, v1, v2, v0 )
+    else:
+        tri( intype, outtype, ptr, v2, v0, v1 )
 
 def do_quad( intype, outtype, ptr, v0, v1, v2, v3, inpv, outpv ):
-    do_tri( intype, outtype, ptr+'+0',  v0, v1, v3, inpv, outpv );
-    do_tri( intype, outtype, ptr+'+3',  v1, v2, v3, inpv, outpv );
+    do_tri(intype, outtype, f'{ptr}+0', v0, v1, v3, inpv, outpv);
+    do_tri(intype, outtype, f'{ptr}+3', v1, v2, v3, inpv, outpv);
 
 def name(intype, outtype, inpv, outpv, prim):
     if intype == GENERATE:
-        return 'generate_' + prim + '_' + outtype + '_' + inpv + '2' + outpv
+        return f'generate_{prim}_{outtype}_{inpv}2{outpv}'
     else:
-        return 'translate_' + prim + '_' + intype + '2' + outtype + '_' + inpv + '2' + outpv
+        return f'translate_{prim}_{intype}2{outtype}_{inpv}2{outpv}'
 
 def preamble(intype, outtype, inpv, outpv, prim):
     print 'static void ' + name( intype, outtype, inpv, outpv, prim ) + '('

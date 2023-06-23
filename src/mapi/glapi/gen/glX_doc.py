@@ -47,17 +47,10 @@ class glx_doc_parameter(gl_XML.gl_parameter):
         FLOAT64, LISTofCARD8, and ENUM.  This function converts the
         type of the parameter to one of these names."""
 
-        list_of = ""
-        if self.is_array():
-            list_of = "LISTof"
-
+        list_of = "LISTof" if self.is_array() else ""
         t_name = self.get_base_type_string()
-        if not type_dict.has_key( t_name ):
-            type_name = "CARD8"
-        else:
-            type_name = type_dict[ t_name ]
-
-        return "%s%s" % (list_of, type_name)
+        type_name = "CARD8" if not type_dict.has_key( t_name ) else type_dict[ t_name ]
+        return f"{list_of}{type_name}"
 
 
     def packet_size(self):
@@ -71,12 +64,14 @@ class glx_doc_parameter(gl_XML.gl_parameter):
                 a_prod = self.counter
             elif self.count_parameter_list and not self.counter or self.is_output:
                 pass
-            elif self.count_parameter_list and self.counter:
+            elif self.count_parameter_list:
                 b_prod = self.counter
             else:
-                raise RuntimeError("Parameter '%s' to function '%s' has size 0." % (self.name, self.context.name))
+                raise RuntimeError(
+                    f"Parameter '{self.name}' to function '{self.context.name}' has size 0."
+                )
 
-            ss = "%s*%s" % (a_prod, b_prod)
+            ss = f"{a_prod}*{b_prod}"
 
             return [ss, p]
         else:

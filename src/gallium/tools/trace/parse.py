@@ -49,9 +49,9 @@ class XmlToken:
 
     def __str__(self):
         if self.type == ELEMENT_START:
-            return '<' + self.name_or_data + ' ...>'
+            return f'<{self.name_or_data} ...>'
         if self.type == ELEMENT_END:
-            return '</' + self.name_or_data + '>'
+            return f'</{self.name_or_data}>'
         if self.type == CHARACTER_DATA:
             return self.name_or_data
         if self.type == EOF:
@@ -257,7 +257,7 @@ class TraceParser(XmlParser):
         expected_tokens = ('null', 'bool', 'int', 'uint', 'float', 'string', 'enum', 'array', 'struct', 'ptr', 'bytes')
         if self.token.type == ELEMENT_START:
             if self.token.name_or_data in expected_tokens:
-                method = getattr(self, 'parse_' +  self.token.name_or_data)
+                method = getattr(self, f'parse_{self.token.name_or_data}')
                 return method()
         raise TokenMismatch(" or " .join(expected_tokens), self.token)
 
@@ -387,9 +387,7 @@ class Main:
             self.process_arg(stream, options)
 
     def get_optparser(self):
-        optparser = optparse.OptionParser(
-            usage="\n\t%prog [options] TRACE  [...]")
-        return optparser
+        return optparse.OptionParser(usage="\n\t%prog [options] TRACE  [...]")
 
     def process_arg(self, stream, options):
         parser = TraceDumper(stream)

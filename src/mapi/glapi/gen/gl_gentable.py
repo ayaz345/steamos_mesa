@@ -153,14 +153,9 @@ class PrintCode(gl_XML.gl_print_base):
 
 
     def get_stack_size(self, f):
-        size = 0
-        for p in f.parameterIterator():
-            if p.is_padding:
-                continue
-
-            size += p.get_stack_size()
-
-        return size
+        return sum(
+            p.get_stack_size() for p in f.parameterIterator() if not p.is_padding
+        )
 
 
     def printRealHeader(self):

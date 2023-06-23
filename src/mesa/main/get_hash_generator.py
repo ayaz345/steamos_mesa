@@ -34,9 +34,9 @@ from collections import defaultdict
 import get_hash_params
 
 cur_dir = os.path.dirname(sys.argv[0])
-param_desc_file = "%s/get_hash_params.py" % cur_dir
+param_desc_file = f"{cur_dir}/get_hash_params.py"
 
-GLAPI = "%s/../../mapi/glapi/gen" % cur_dir
+GLAPI = f"{cur_dir}/../../mapi/glapi/gen"
 sys.path.append(GLAPI)
 import gl_XML
 
@@ -44,7 +44,7 @@ prime_factor = 89
 prime_step = 281
 hash_table_size = 1024
 
-gl_apis=set(["GL", "GL_CORE", "GLES", "GLES2", "GLES3"])
+gl_apis = {"GL", "GL_CORE", "GLES", "GLES2", "GLES3"}
 
 def print_header():
    print "typedef const unsigned short table_t[%d];\n" % (hash_table_size)
@@ -59,7 +59,7 @@ def print_params(params):
    print "};\n"
 
 def api_name(api):
-   return "API_OPEN%s" % api
+   return f"API_OPEN{api}"
 
 # This must match gl_api enum in src/mesa/main/mtypes.h
 api_enum = [
@@ -74,7 +74,7 @@ def api_index(api):
     return api_enum.index(api)
 
 def table_name(api):
-   return "table_" + api_name(api)
+   return f"table_{api_name(api)}"
 
 def print_table(api, table):
    print "static table_t %s = {" % (table_name(api))
@@ -114,9 +114,8 @@ def print_tables(tables):
 def merge_tables(tables):
    merged_tables = []
    for api, indices in sorted(tables.items()):
-      matching_table = filter(lambda mt:mt["indices"] == indices,
-                              merged_tables)
-      if matching_table:
+      if matching_table := filter(lambda mt: mt["indices"] == indices,
+                                  merged_tables):
          matching_table[0]["apis"].append(api)
       else:
          merged_tables.append({"apis": [api], "indices": indices})
@@ -145,10 +144,9 @@ def generate_hash_tables(enum_list, enabled_apis, param_descriptors):
    params = [[0, ""]]
 
    for param_block in param_descriptors:
-      if set(["apis", "params"]) != set(param_block):
-         die("missing fields (%s) in param descriptor file (%s)" %
-               (", ".join(set(["apis", "params"]) - set(param_block)),
-                param_desc_file))
+      if {"apis", "params"} != set(param_block):
+         die(f'missing fields ({", ".join({"apis", "params"} - set(param_block))}) in param descriptor file ({param_desc_file})'
+             )
 
       valid_apis = set(param_block["apis"])
       if valid_apis - gl_apis:
@@ -171,12 +169,12 @@ def generate_hash_tables(enum_list, enabled_apis, param_descriptors):
             if api == "GLES2":
                add_to_hash_table(tables["GLES3"], hash_val, len(params))
 
-         params.append(["GL_" + enum_name, param[1]])
+         params.append([f"GL_{enum_name}", param[1]])
 
-   sorted_tables={}
-   for api, indices in tables.items():
-      sorted_tables[api] = sorted(indices.items())
-
+   sorted_tables = {
+       api: sorted(indices.items())
+       for api, indices in tables.items()
+   }
    return params, merge_tables(sorted_tables)
 
 
