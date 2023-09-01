@@ -64,31 +64,28 @@ prefixes64 = SCons.Util.Split("""
 """)
 
 def find(env):
-    if env['machine'] == 'x86_64':
-        prefixes = prefixes64
-    else:
-        prefixes = prefixes32
-    for prefix in prefixes:
-        # First search in the SCons path and then the OS path:
-        if env.WhereIs(prefix + 'gcc') or SCons.Util.WhereIs(prefix + 'gcc'):
-            return prefix
-
-    return ''
+    prefixes = prefixes64 if env['machine'] == 'x86_64' else prefixes32
+    return next(
+        (
+            prefix
+            for prefix in prefixes
+            if env.WhereIs(f'{prefix}gcc')
+            or SCons.Util.WhereIs(f'{prefix}gcc')
+        ),
+        '',
+    )
 
 def shlib_generator(target, source, env, for_signature):
     cmd = SCons.Util.CLVar(['$SHLINK', '$SHLINKFLAGS']) 
 
-    dll = env.FindIxes(target, 'SHLIBPREFIX', 'SHLIBSUFFIX')
-    if dll: cmd.extend(['-o', dll])
-
+    if dll := env.FindIxes(target, 'SHLIBPREFIX', 'SHLIBSUFFIX'):
+        cmd.extend(['-o', dll])
     cmd.extend(['$SOURCES', '$_LIBDIRFLAGS', '$_LIBFLAGS'])
 
-    implib = env.FindIxes(target, 'LIBPREFIX', 'LIBSUFFIX')
-    if implib: cmd.append('-Wl,--out-implib,'+implib.get_string(for_signature))
-
-    def_target = env.FindIxes(target, 'WIN32DEFPREFIX', 'WIN32DEFSUFFIX')
-    if def_target: cmd.append('-Wl,--output-def,'+def_target.get_string(for_signature))
-
+    if implib := env.FindIxes(target, 'LIBPREFIX', 'LIBSUFFIX'):
+        cmd.append(f'-Wl,--out-implib,{implib.get_string(for_signature)}')
+    if def_target := env.FindIxes(target, 'WIN32DEFPREFIX', 'WIN32DEFSUFFIX'):
+        cmd.append(f'-Wl,--output-def,{def_target.get_string(for_signature)}')
     return [cmd]
 
 def shlib_emitter(target, source, env):
@@ -96,8 +93,11 @@ def shlib_emitter(target, source, env):
     no_import_lib = env.get('no_import_lib', 0)
 
     if not dll:
-        raise SCons.Errors.UserError, "A shared library should have exactly one target with the suffix: %s" % env.subst("$SHLIBSUFFIX")
-    
+        raise (
+            SCons.Errors.UserError,
+            f'A shared library should have exactly one target with the suffix: {env.subst("$SHLIBSUFFIX")}',
+        )
+
     if not no_import_lib and \
        not env.FindIxes(target, 'LIBPREFIX', 'LIBSUFFIX'):
 
@@ -116,7 +116,7 @@ def shlib_emitter(target, source, env):
         target.append(env.ReplaceIxes(dll,  
                                       'SHLIBPREFIX', 'SHLIBSUFFIX',
                                       'WIN32DEFPREFIX', 'WIN32DEFSUFFIX'))
-    
+
     return (target, source)
                          
 
@@ -134,7 +134,10 @@ def generate(env):
     mingw_prefix = find(env)
 
     if mingw_prefix:
-        dir = os.path.dirname(env.WhereIs(mingw_prefix + 'gcc') or SCons.Util.WhereIs(mingw_prefix + 'gcc'))
+        dir = os.path.dirname(
+            env.WhereIs(f'{mingw_prefix}gcc')
+            or SCons.Util.WhereIs(f'{mingw_prefix}gcc')
+        )
 
         # The mingw bin directory must be added to the path:
         path = env['ENV'].get('PATH', [])
@@ -151,28 +154,28 @@ def generate(env):
         SCons.Tool.Tool(tool)(env)
 
     #... but a few things differ:
-    env['CC'] = mingw_prefix + 'gcc'
+    env['CC'] = f'{mingw_prefix}gcc'
     env['SHCCFLAGS'] = SCons.Util.CLVar('$CCFLAGS')
-    env['CXX'] = mingw_prefix + 'g++'
+    env['CXX'] = f'{mingw_prefix}g++'
     env['SHCXXFLAGS'] = SCons.Util.CLVar('$CXXFLAGS')
     env['SHLINKFLAGS'] = SCons.Util.CLVar('$LINKFLAGS -shared')
     env['SHLINKCOM']   = shlib_action
     env.Append(SHLIBEMITTER = [shlib_emitter])
-    env['LINK'] = mingw_prefix + 'g++'
-    env['AR'] = mingw_prefix + 'ar'
-    env['RANLIB'] = mingw_prefix + 'ranlib'
-    env['LINK'] = mingw_prefix + 'g++'
-    env['AS'] = mingw_prefix + 'as'
+    env['LINK'] = f'{mingw_prefix}g++'
+    env['AR'] = f'{mingw_prefix}ar'
+    env['RANLIB'] = f'{mingw_prefix}ranlib'
+    env['LINK'] = f'{mingw_prefix}g++'
+    env['AS'] = f'{mingw_prefix}as'
     env['WIN32DEFPREFIX']        = ''
     env['WIN32DEFSUFFIX']        = '.def'
     env['SHOBJSUFFIX'] = '.o'
     env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
 
-    env['RC'] = mingw_prefix + 'windres'
+    env['RC'] = f'{mingw_prefix}windres'
     env['RCFLAGS'] = SCons.Util.CLVar('')
     env['RCCOM'] = '$RC $_CPPDEFFLAGS $_CPPINCFLAGS ${INCPREFIX}${SOURCE.dir} $RCFLAGS -i $SOURCE -o $TARGET'
     env['BUILDERS']['RES'] = res_builder
-    
+
     # Some setting from the platform also have to be overridden:
     env['OBJPREFIX']      = ''
     env['OBJSUFFIX']      = '.o'

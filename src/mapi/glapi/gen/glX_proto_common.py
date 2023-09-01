@@ -62,18 +62,15 @@ class glx_print_proto(gl_XML.gl_print_base):
                 if param.is_image():
                     [dim, w, h, d, junk] = param.get_dimensions()
 
-                    compsize = '__glImageSize(%s, %s, %s, %s, %s, %s)' % (w, h, d, param.img_format, param.img_type, param.img_target)
+                    compsize = f'__glImageSize({w}, {h}, {d}, {param.img_format}, {param.img_type}, {param.img_target})'
                     if not param.img_send_null:
-                        compsize = '(%s != NULL) ? %s : 0' % (param.name, compsize)
+                        compsize = f'({param.name} != NULL) ? {compsize} : 0'
 
                     return compsize
 
                 elif len(param.count_parameter_list):
                     parameters = string.join( param.count_parameter_list, "," )
-                    compsize = "__gl%s_size(%s)" % (func.name, parameters)
-
-                    return compsize
-
+                    return f"__gl{func.name}_size({parameters})"
         return None
 
 

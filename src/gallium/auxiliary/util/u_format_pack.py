@@ -150,24 +150,23 @@ def native_type(format):
         if not format.is_array():
             # For arithmetic pixel formats return the integer type that matches the whole pixel
             return 'uint%u_t' % format.block_size()
-        else:
-            # For array pixel formats return the integer type that matches the color channel
-            channel = format.channels[0]
-            if channel.type in (UNSIGNED, VOID):
-                return 'uint%u_t' % channel.size
-            elif channel.type in (SIGNED, FIXED):
-                return 'int%u_t' % channel.size
-            elif channel.type == FLOAT:
-                if channel.size == 16:
-                    return 'uint16_t'
-                elif channel.size == 32:
-                    return 'float'
-                elif channel.size == 64:
-                    return 'double'
-                else:
-                    assert False
+        # For array pixel formats return the integer type that matches the color channel
+        channel = format.channels[0]
+        if channel.type in (UNSIGNED, VOID):
+            return 'uint%u_t' % channel.size
+        elif channel.type in (SIGNED, FIXED):
+            return 'int%u_t' % channel.size
+        elif channel.type == FLOAT:
+            if channel.size == 16:
+                return 'uint16_t'
+            elif channel.size == 32:
+                return 'float'
+            elif channel.size == 64:
+                return 'double'
             else:
                 assert False
+        else:
+            assert False
     else:
         assert False
 
@@ -180,10 +179,7 @@ def intermediate_native_type(bits, sign):
         bytes *= 2
     bits = bytes*8
 
-    if sign:
-        return 'int%u_t' % bits
-    else:
-        return 'uint%u_t' % bits
+    return 'int%u_t' % bits if sign else 'uint%u_t' % bits
 
 
 def get_one_shift(type):
@@ -218,13 +214,7 @@ def value_to_native(type, value):
 
 def native_to_constant(type, value):
     '''Get the value of unity for this type.'''
-    if type.type == FLOAT:
-        if type.size <= 32:
-            return "%ff" % value 
-        else:
-            return "%ff" % value 
-    else:
-        return str(int(value))
+    return "%ff" % value if type.type == FLOAT else str(int(value))
 
 
 def get_one(type):
@@ -243,21 +233,18 @@ def clamp_expr(src_channel, dst_channel, dst_native_type, value):
     src_max = src_channel.max()
     dst_min = dst_channel.min()
     dst_max = dst_channel.max()
-    
+
     # Translate the destination range to the src native value
     dst_min_native = value_to_native(src_channel, dst_min)
     dst_max_native = value_to_native(src_channel, dst_max)
 
     if src_min < dst_min and src_max > dst_max:
-        return 'CLAMP(%s, %s, %s)' % (value, dst_min_native, dst_max_native)
+        return f'CLAMP({value}, {dst_min_native}, {dst_max_native})'
 
     if src_max > dst_max:
-        return 'MIN2(%s, %s)' % (value, dst_max_native)
-        
-    if src_min < dst_min:
-        return 'MAX2(%s, %s)' % (value, dst_min_native)
+        return f'MIN2({value}, {dst_max_native})'
 
-    return value
+    return f'MAX2({value}, {dst_min_native})' if src_min < dst_min else value
 
 
 def conversion_expr(src_channel, 
@@ -293,11 +280,7 @@ def conversion_expr(src_channel,
                 assert src_channel.norm
                 assert src_channel.size == 8
                 return 'util_format_linear_to_srgb_8unorm(%s)' % value
-        elif src_colorspace == ZS:
-            pass
-        elif dst_colorspace == ZS:
-            pass
-        else:
+        elif src_colorspace != ZS and dst_colorspace != ZS:
             assert 0
 
     if src_channel == dst_channel:

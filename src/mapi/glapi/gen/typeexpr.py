@@ -44,23 +44,15 @@ class type_node(object):
 
     def string(self):
         """Return string representation of this type_node."""
-        s = ""
-
-        if self.pointer:
-            s = "* "
-
+        s = "* " if self.pointer else ""
         if self.const:
             s += "const "
 
         if not self.pointer:
             if self.integer:
-                if self.signed:
-                    s += "signed "
-                else:
-                    s += "unsigned "
-
+                s += "signed " if self.signed else "unsigned "
             if self.name:
-                s += "%s " % (self.name)
+                s += f"{self.name} "
 
         return s
 
@@ -77,10 +69,7 @@ class type_table(object):
 
 
     def find_type(self, name):
-        if name in self.types_by_name:
-            return self.types_by_name[ name ]
-        else:
-            return None
+        return self.types_by_name[ name ] if name in self.types_by_name else None
 
 
 def create_initial_types():
@@ -165,7 +154,9 @@ class type_expression(object):
                 self.expr.append( t )
             else:
                 if self.expr:
-                    raise RuntimeError('Invalid type expression (garbage after pointer qualifier -> "%s")' % (self.original_string))
+                    raise RuntimeError(
+                        f'Invalid type expression (garbage after pointer qualifier -> "{self.original_string}")'
+                    )
 
                 self.set_base_type( i, signed, unsigned, const, extra_types )
                 const = 0
@@ -194,7 +185,7 @@ class type_expression(object):
             te = extra_types.find_type( type_name )
 
         if not te:
-            raise RuntimeError('Unknown base type "%s".' % (type_name))
+            raise RuntimeError(f'Unknown base type "{type_name}".')
 
         self.expr = copy.deepcopy(te.expr)
 
@@ -219,11 +210,7 @@ class type_expression(object):
 
 
     def string(self):
-        s = ""
-        for t in self.expr:
-            s += t.string()
-
-        return s
+        return "".join(t.string() for t in self.expr)
 
 
     def get_base_type_node(self):
@@ -231,19 +218,13 @@ class type_expression(object):
 
 
     def get_base_name(self):
-        if len(self.expr):
-            return self.expr[0].name
-        else:
-            return None
+        return self.expr[0].name if len(self.expr) else None
 
 
     def get_element_size(self):
         tn = self.expr[0]
 
-        if tn.elements:
-            return tn.elements * tn.size
-        else:
-            return tn.size
+        return tn.elements * tn.size if tn.elements else tn.size
 
 
     def get_element_count(self):
@@ -254,12 +235,7 @@ class type_expression(object):
     def get_stack_size(self):
         tn = self.expr[ -1 ]
 
-        if tn.elements or tn.pointer:
-            return 4
-        elif not tn.integer:
-            return tn.size
-        else:
-            return 4
+        return 4 if tn.elements or tn.pointer or tn.integer else tn.size
 
 
     def is_pointer(self):

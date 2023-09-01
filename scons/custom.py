@@ -147,7 +147,7 @@ def code_generate(env, script, target, source, command):
     # source directory.  When we clean up, they should go too. So add side
     # effects for .pyc files
     for dep in deps:
-        pyc = env.File(str(dep) + 'c')
+        pyc = env.File(f'{str(dep)}c')
         env.SideEffect(pyc, code)
 
     return code
@@ -161,7 +161,7 @@ def createCodeGenerateMethod(env):
 def _pkg_check_modules(env, name, modules):
     '''Simple wrapper for pkg-config.'''
 
-    env['HAVE_' + name] = False
+    env[f'HAVE_{name}'] = False
 
     # For backwards compatability
     env[name.lower()] = False
@@ -184,18 +184,18 @@ def _pkg_check_modules(env, name, modules):
         flags = env.ParseFlags('!pkg-config --cflags --libs ' + ' '.join(modules))
     except OSError:
         return
-    prefix = name + '_'
+    prefix = f'{name}_'
     for flag_name, flag_value in flags.iteritems():
         assert '_' not in flag_name
         env[prefix + flag_name] = flag_value
 
-    env['HAVE_' + name] = True
+    env[f'HAVE_{name}'] = True
 
 def pkg_check_modules(env, name, modules):
 
-    sys.stdout.write('Checking for %s (%s)...' % (name, ' '.join(modules)))
+    sys.stdout.write(f"Checking for {name} ({' '.join(modules)})...")
     _pkg_check_modules(env, name, modules)
-    result = env['HAVE_' + name]
+    result = env[f'HAVE_{name}']
     sys.stdout.write(' %s\n' % ['no', 'yes'][int(bool(result))])
 
     # XXX: For backwards compatability
@@ -209,13 +209,13 @@ def pkg_use_modules(env, names):
     names = env.Flatten(names)
 
     for name in names:
-        prefix = name + '_'
+        prefix = f'{name}_'
 
-        if not 'HAVE_' + name in env:
-            raise Exception('Attempt to use unknown module %s' % name)
+        if f'HAVE_{name}' not in env:
+            raise Exception(f'Attempt to use unknown module {name}')
 
-        if not env['HAVE_' + name]:
-            raise Exception('Attempt to use unavailable module %s' % name)
+        if not env[f'HAVE_{name}']:
+            raise Exception(f'Attempt to use unavailable module {name}')
 
         flags = {}
         for flag_name, flag_value in env.Dictionary().iteritems():
@@ -268,27 +268,25 @@ def parse_source_list(env, filename, names=None):
         for f in val.split():
             if f:
                 # Process source paths
-                if f.startswith(top_builddir + '/src'):
+                if f.startswith(f'{top_builddir}/src'):
                     # Automake puts build output on a `src` subdirectory, but
                     # SCons does not, so strip it here.
-                    f = top_builddir + f[len(top_builddir + '/src'):]
-                if f.startswith(cur_srcdir + '/'):
+                    f = top_builddir + f[len(f'{top_builddir}/src'):]
+                if f.startswith(f'{cur_srcdir}/'):
                     # Prefer relative source paths, as absolute files tend to
                     # cause duplicate actions.
-                    f = f[len(cur_srcdir + '/'):]
+                    f = f[len(f'{cur_srcdir}/'):]
                 srcs.append(f)
 
         src_lists[sym] = srcs
 
-    # if names are given, concatenate the lists
-    if names:
-        srcs = []
-        for name in names:
-            srcs.extend(src_lists[name])
-
-        return srcs
-    else:
+    if not names:
         return src_lists
+    srcs = []
+    for name in names:
+        srcs.extend(src_lists[name])
+
+    return srcs
 
 def createParseSourceListMethod(env):
     env.AddMethod(parse_source_list, 'ParseSourceList')

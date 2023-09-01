@@ -186,12 +186,9 @@ def PrintTail():
 records = []
 
 def FindOffset(funcName):
-    for (name, alias, offset) in records:
-        if name == funcName:
-            return offset
-        #endif
-    #endfor
-    return -1
+    return next(
+        (offset for name, alias, offset in records if name == funcName), -1
+    )
 #enddef
 
 

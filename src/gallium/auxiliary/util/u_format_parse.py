@@ -123,27 +123,19 @@ class Format:
         return self.name
 
     def short_name(self):
-        '''Make up a short norm for a format, suitable to be used as suffix in
+       '''Make up a short norm for a format, suitable to be used as suffix in
         function names.'''
 
-        name = self.name
-        if name.startswith('PIPE_FORMAT_'):
-            name = name[len('PIPE_FORMAT_'):]
-        name = name.lower()
-        return name
+       name = self.name
+       if name.startswith('PIPE_FORMAT_'):
+           name = name[len('PIPE_FORMAT_'):]
+       return name.lower()
 
     def block_size(self):
-        size = 0
-        for channel in self.channels:
-            size += channel.size
-        return size
+       return sum(channel.size for channel in self.channels)
 
     def nr_channels(self):
-        nr_channels = 0
-        for channel in self.channels:
-            if channel.size:
-                nr_channels += 1
-        return nr_channels
+       return sum(1 for channel in self.channels if channel.size)
 
     def is_array(self):
         if self.layout != PLAIN:
@@ -183,40 +175,33 @@ class Format:
         return is_pot(self.block_size())
 
     def is_int(self):
-        if self.layout != PLAIN:
-            return False
-        for channel in self.channels:
-            if channel.type not in (VOID, UNSIGNED, SIGNED):
-                return False
-        return True
+       if self.layout != PLAIN:
+           return False
+       return all(channel.type in (VOID, UNSIGNED, SIGNED)
+                  for channel in self.channels)
 
     def is_float(self):
-        if self.layout != PLAIN:
-            return False
-        for channel in self.channels:
-            if channel.type not in (VOID, FLOAT):
-                return False
-        return True
+       if self.layout != PLAIN:
+           return False
+       return all(channel.type in (VOID, FLOAT) for channel in self.channels)
 
     def is_bitmask(self):
-        if self.layout != PLAIN:
-            return False
-        if self.block_size() not in (8, 16, 32):
-            return False
-        for channel in self.channels:
-            if channel.type not in (VOID, UNSIGNED, SIGNED):
-                return False
-        return True
+       if self.layout != PLAIN:
+           return False
+       if self.block_size() not in (8, 16, 32):
+           return False
+       return all(channel.type in (VOID, UNSIGNED, SIGNED)
+                  for channel in self.channels)
 
     def inv_swizzles(self):
-        '''Return an array[4] of inverse swizzle terms'''
-        '''Only pick the first matching value to avoid l8 getting blue and i8 getting alpha'''
-        inv_swizzle = [None]*4
-        for i in range(4):
-            swizzle = self.swizzles[i]
-            if swizzle < 4 and inv_swizzle[swizzle] == None:
-                inv_swizzle[swizzle] = i
-        return inv_swizzle
+       '''Return an array[4] of inverse swizzle terms'''
+       '''Only pick the first matching value to avoid l8 getting blue and i8 getting alpha'''
+       inv_swizzle = [None]*4
+       for i in range(4):
+          swizzle = self.swizzles[i]
+          if swizzle < 4 and inv_swizzle[swizzle] is None:
+             inv_swizzle[swizzle] = i
+       return inv_swizzle
 
     def stride(self):
         return self.block_size()/8
@@ -242,82 +227,81 @@ _swizzle_parse_map = {
 }
 
 def parse(filename):
-    '''Parse the format descrition in CSV format in terms of the 
+   '''Parse the format descrition in CSV format in terms of the 
     Channel and Format classes above.'''
 
-    stream = open(filename)
-    formats = []
-    for line in stream:
-        try:
-            comment = line.index('#')
-        except ValueError:
-            pass
-        else:
-            line = line[:comment]
-        line = line.strip()
-        if not line:
-            continue
+   stream = open(filename)
+   formats = []
+   for line in stream:
+      try:
+          comment = line.index('#')
+      except ValueError:
+          pass
+      else:
+          line = line[:comment]
+      line = line.strip()
+      if not line:
+          continue
 
-        fields = [field.strip() for field in line.split(',')]
-        
-        name = fields[0]
-        layout = fields[1]
-        block_width, block_height = map(int, fields[2:4])
+      fields = [field.strip() for field in line.split(',')]
 
-        swizzles = [_swizzle_parse_map[swizzle] for swizzle in fields[8]]
-        colorspace = fields[9]
-        
-        if layout == PLAIN:
-            names = ['']*4
-            if colorspace in (RGB, SRGB):
-                for i in range(4):
-                    swizzle = swizzles[i]
-                    if swizzle < 4:
-                        names[swizzle] += 'rgba'[i]
-            elif colorspace == ZS:
-                for i in range(4):
-                    swizzle = swizzles[i]
-                    if swizzle < 4:
-                        names[swizzle] += 'zs'[i]
+      name = fields[0]
+      layout = fields[1]
+      block_width, block_height = map(int, fields[2:4])
+
+      swizzles = [_swizzle_parse_map[swizzle] for swizzle in fields[8]]
+      colorspace = fields[9]
+
+      if layout == PLAIN:
+          names = ['']*4
+          if colorspace in (RGB, SRGB):
+              for i in range(4):
+                  swizzle = swizzles[i]
+                  if swizzle < 4:
+                      names[swizzle] += 'rgba'[i]
+          elif colorspace == ZS:
+              for i in range(4):
+                  swizzle = swizzles[i]
+                  if swizzle < 4:
+                      names[swizzle] += 'zs'[i]
+          else:
+              assert False
+          for i in range(4):
+              if names[i] == '':
+                  names[i] = 'x'
+      else:
+          names = ['x', 'y', 'z', 'w']
+
+      channels = []
+      for i in range(0, 4):
+         if field := fields[4 + i]:
+            type = _type_parse_map[field[0]]
+            if field[1] == 'n':
+                norm = True
+                pure = False
+                size = int(field[2:])
+            elif field[1] == 'p':
+                pure = True
+                norm = False
+                size = int(field[2:])
             else:
-                assert False
-            for i in range(4):
-                if names[i] == '':
-                    names[i] = 'x'
-        else:
-            names = ['x', 'y', 'z', 'w']
-
-        channels = []
-        for i in range(0, 4):
-            field = fields[4 + i]
-            if field:
-                type = _type_parse_map[field[0]]
-                if field[1] == 'n':
-                    norm = True
-                    pure = False
-                    size = int(field[2:])
-                elif field[1] == 'p':
-                    pure = True
-                    norm = False
-                    size = int(field[2:])
-                else:
-                    norm = False
-                    pure = False
-                    size = int(field[1:])
-            else:
-                type = VOID
                 norm = False
                 pure = False
-                size = 0
-            channel = Channel(type, norm, pure, size, names[i])
-            channels.append(channel)
+                size = int(field[1:])
+         else:
+            type = VOID
+            norm = False
+            pure = False
+            size = 0
+         channel = Channel(type, norm, pure, size, names[i])
+         channels.append(channel)
 
-        shift = 0
-        for channel in channels[3::-1] if is_big_endian else channels:
-            channel.shift = shift
-            shift += channel.size
+      shift = 0
+      for channel in channels[3::-1] if is_big_endian else channels:
+          channel.shift = shift
+          shift += channel.size
 
-        format = Format(name, layout, block_width, block_height, channels, swizzles, colorspace)
-        formats.append(format)
-    return formats
+      format = Format(name, layout, block_width, block_height, channels, swizzles, colorspace)
+      formats.append(format)
+   return formats
 

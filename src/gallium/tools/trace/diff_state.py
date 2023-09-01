@@ -96,7 +96,7 @@ class Dumper(Visitor):
 
     def enter_member(self, name):
         self._indent()
-        self._write('%s: ' % name)
+        self._write(f'{name}: ')
 
     def leave_member(self, last):
         if not last:
@@ -168,17 +168,11 @@ class Comparer(Visitor):
             return False
         if len(a) != len(b):
             return False
-        for ae, be in zip(a, b):
-            if not self.visit(ae, be):
-                return False
-        return True
+        return all(self.visit(ae, be) for ae, be in zip(a, b))
 
     def visitValue(self, a, b):
         if isinstance(a, float) or isinstance(b, float):
-            if a == 0:
-                return abs(b) < self.tolerance
-            else:
-                return abs((b - a)/a) < self.tolerance
+            return abs(b) < self.tolerance if a == 0 else abs((b - a)/a) < self.tolerance
         else:
             return a == b
 
@@ -202,9 +196,7 @@ class Differ(Visitor):
             names = set(a.keys())
             if not self.comparer.ignore_added:
                 names.update(b.keys())
-            names = list(names)
-            names.sort()
-
+            names = sorted(names)
             for i in range(len(names)):
                 name = names[i]
                 ae = a.get(name, None)
@@ -294,14 +286,13 @@ _token_res = [
     r'"[^"\\]*(\\.[^"\\]*)*"', # string
 ]
 
-_tokens_re = re.compile(r'|'.join(['(' + token_re + ')' for token_re in _token_res]), re.DOTALL)
+_tokens_re = re.compile(
+    r'|'.join([f'({token_re})' for token_re in _token_res]), re.DOTALL
+)
 
 
 def _strip_comment(mo):
-    if mo.group(1):
-        return ''
-    else:
-        return mo.group(0)
+    return '' if mo.group(1) else mo.group(0)
 
 
 def _strip_comments(data):
@@ -317,16 +308,12 @@ assert _strip_comments('''// a comment
 
 
 def load(stream, strip_images = True, strip_comments = True):
-    if strip_images:
-        object_hook = strip_object_hook
-    else:
-        object_hook = None
-    if strip_comments:
-        data = stream.read()
-        data = _strip_comments(data)
-        return json.loads(data, strict=False, object_hook = object_hook)
-    else:
+    object_hook = strip_object_hook if strip_images else None
+    if not strip_comments:
         return json.load(stream, strict=False, object_hook = object_hook)
+    data = stream.read()
+    data = _strip_comments(data)
+    return json.loads(data, strict=False, object_hook = object_hook)
 
 
 def main():
@@ -344,10 +331,6 @@ def main():
 
     a = load(open(sys.argv[1], 'rt'), options.strip_images)
     b = load(open(sys.argv[2], 'rt'), options.strip_images)
-
-    if False:
-        dumper = Dumper()
-        dumper.visit(a)
 
     differ = Differ()
     differ.visit(a, b)

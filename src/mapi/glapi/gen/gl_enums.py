@@ -185,12 +185,9 @@ _mesa_lookup_prim_by_nr(GLuint nr)
 
 
             enum = self.enum_table[ obj.value ]
-            name = "GL_" + obj.name
+            name = f"GL_{obj.name}"
             priority = obj.priority()
-            already_in = False;
-            for n, p in enum:
-                if n == name:
-                    already_in = True
+            already_in = any(n == name for n, p in enum)
             if not already_in:
                 enum.append( [name, priority] )
 

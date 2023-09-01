@@ -204,21 +204,20 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
         o = param.offset
         element_size = param.size() / param.get_element_count()
 
-        if self.do_swap and (element_size != 1):
-            if param.is_array():
-                real_name = self.real_types[ element_size ]
+        if not self.do_swap or element_size == 1:
+            return (
+                ' (%-8s)(pc + %2u)' % (t, o)
+                if param.is_array()
+                else '*(%-8s *)(pc + %2u)' % (t, o)
+            )
+        if param.is_array():
+            real_name = self.real_types[ element_size ]
 
-                swap_func = self.swap_name( element_size )
-                return ' (%-8s)%s( (%s *) (pc + %2s), %s )' % (t, swap_func, real_name, o, param.count)
-            else:
-                t_name = param.get_base_type_string()
-                return ' (%-8s)bswap_%-7s( pc + %2s )' % (t, self.type_map[ t_name ], o)
+            swap_func = self.swap_name( element_size )
+            return ' (%-8s)%s( (%s *) (pc + %2s), %s )' % (t, swap_func, real_name, o, param.count)
         else:
-            if param.is_array():
-                return ' (%-8s)(pc + %2u)' % (t, o)
-            else:
-                return '*(%-8s *)(pc + %2u)' % (t, o)
-
+            t_name = param.get_base_type_string()
+            return ' (%-8s)bswap_%-7s( pc + %2s )' % (t, self.type_map[ t_name ], o)
         return None
 
 

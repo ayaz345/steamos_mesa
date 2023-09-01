@@ -103,18 +103,15 @@ def lookupMap(filename, matchSymbol):
     return None
 
 def lookupAsm(filename, desiredFunction):
-    stream = open(filename + '.asm', 'rt')
+    stream = open(f'{filename}.asm', 'rt')
     while stream.readline() != desiredFunction + ':\n':
         pass
 
     asm = []
-    line = stream.readline().strip()
-    while line:
+    while line := stream.readline().strip():
         addr, instr = line.split(':', 1)
         addr = int(addr)
         asm.append((addr, instr))
-        line = stream.readline().strip()
-
     return asm
 
 
@@ -184,7 +181,7 @@ class PerfParser(LineParser):
     def parse_callchain(self):
         callchain = []
         while self.lookahead():
-            function = self.parse_call(len(callchain) == 0)
+            function = self.parse_call(not callchain)
             if function is None:
                 break
             callchain.append(function)
@@ -210,7 +207,7 @@ class PerfParser(LineParser):
 
         module = mo.group('module')
 
-        function_id = function_name + ':' + module
+        function_id = f'{function_name}:{module}'
 
         address = mo.group('address')
         address = int(address, 16)

@@ -70,7 +70,7 @@ def is_attr_true( element, name ):
     elif value == "false":
         return 0
     else:
-        raise RuntimeError('Invalid value "%s" for boolean "%s".' % (value, name))
+        raise RuntimeError(f'Invalid value "{value}" for boolean "{name}".')
 
 
 class gl_print_base(object):
@@ -255,12 +255,7 @@ class gl_print_base(object):
 
 def real_function_name(element):
     name = element.nsProp( "name", None )
-    alias = element.nsProp( "alias", None )
-
-    if alias:
-        return alias
-    else:
-        return name
+    return alias if (alias := element.nsProp( "alias", None )) else name
 
 
 def real_category_name(c):
@@ -318,7 +313,7 @@ def create_parameter_string(parameters, include_names):
         else:
             list.append( p.type_string() )
 
-    if len(list) == 0: list = ["void"]
+    if not list: list = ["void"]
 
     return string.join(list, ", ")
 
@@ -342,7 +337,7 @@ class gl_type( gl_item ):
         tn.integer = not is_attr_true( element, "float" )
         tn.unsigned = is_attr_true( element, "unsigned" )
         tn.pointer = is_attr_true( element, "pointer" )
-        tn.name = "GL" + self.name
+        tn.name = f"GL{self.name}"
         te.set_base_type_node( tn )
 
         self.type_expr = te
@@ -384,11 +379,7 @@ class gl_enum( gl_item ):
         Vendor extension names are the lowest.
         """
 
-        if self.name.endswith( "_BIT" ):
-            bias = 1
-        else:
-            bias = 0
-
+        bias = 1 if self.name.endswith( "_BIT" ) else 0
         if self.category.startswith( "GL_VERSION_" ):
             priority = 0
         elif self.category.startswith( "GL_ARB_" ):
@@ -485,10 +476,7 @@ class gl_parameter(object):
 
 
     def is_image(self):
-        if self.width:
-            return 1
-        else:
-            return 0
+        return 1 if self.width else 0
 
 
     def is_variable_length(self):
@@ -496,19 +484,17 @@ class gl_parameter(object):
 
 
     def is_64_bit(self):
-        count = self.type_expr.get_element_count()
-        if count:
+        if count := self.type_expr.get_element_count():
             if (self.size() / count) == 8:
                 return 1
-        else:
-            if self.size() == 8:
-                return 1
+        elif self.size() == 8:
+            return 1
 
         return 0
 
 
     def string(self):
-        return self.type_expr.original_string + " " + self.name
+        return f"{self.type_expr.original_string} {self.name}"
 
 
     def type_string(self):
@@ -549,18 +535,12 @@ class gl_parameter(object):
 
 
     def size(self):
-        if self.is_image():
-            return 0
-        else:
-            return self.type_expr.get_element_size()
+        return 0 if self.is_image() else self.type_expr.get_element_size()
 
 
     def get_element_count(self):
         c = self.type_expr.get_element_count()
-        if c == 0:
-            return 1
-
-        return c
+        return 1 if c == 0 else c
 
 
     def size_string(self, use_parens = 1):
@@ -576,8 +556,8 @@ class gl_parameter(object):
             if s > 1:
                 list.append( str(s) )
 
-            if len(list) > 1 and use_parens :
-                return "(%s)" % (string.join(list, " * "))
+            if len(list) > 1 and use_parens:
+                return f'({string.join(list, " * ")})'
             else:
                 return string.join(list, " * ")
 
@@ -757,7 +737,7 @@ class gl_function( gl_item ):
     def filter_entry_points(self, entry_point_list):
         """Filter out entry points not in entry_point_list."""
         if not self.initialized:
-            raise RuntimeError('%s is not initialized yet' % self.name)
+            raise RuntimeError(f'{self.name} is not initialized yet')
 
         entry_points = []
         for ent in self.entry_points:
@@ -769,7 +749,7 @@ class gl_function( gl_item ):
                 entry_points.append(ent)
 
         if not entry_points:
-            raise RuntimeError('%s has no entry point after filtering' % self.name)
+            raise RuntimeError(f'{self.name} has no entry point after filtering')
 
         self.entry_points = entry_points
         if self.name not in entry_points:
@@ -883,8 +863,9 @@ class gl_api(object):
         """Filter out entry points not in entry_point_list."""
         functions_by_name = {}
         for func in self.functions_by_name.itervalues():
-            entry_points = [ent for ent in func.entry_points if ent in entry_point_list]
-            if entry_points:
+            if entry_points := [
+                ent for ent in func.entry_points if ent in entry_point_list
+            ]:
                 func.filter_entry_points(entry_points)
                 functions_by_name[func.name] = func
 
@@ -896,8 +877,7 @@ class gl_api(object):
         """
         functions_by_name = {}
         for func in self.functions_by_name.itervalues():
-            entry_points = func.entry_points_for_api_version(api, version)
-            if entry_points:
+            if entry_points := func.entry_points_for_api_version(api, version):
                 func.filter_entry_points(entry_points)
                 functions_by_name[func.name] = func
 
@@ -959,7 +939,7 @@ class gl_api(object):
                     self.enums_by_name[ enum.name ] = enum
                 elif child.name == "type":
                     t = self.factory.create_item( "type", child, self )
-                    self.types_by_name[ "GL" + t.name ] = t
+                    self.types_by_name[f"GL{t.name}"] = t
 
 
             child = child.next
@@ -980,7 +960,7 @@ class gl_api(object):
         for func in self.functionIterateAll():
             [cat_name, cat_number] = self.category_dict[func.name]
 
-            if (cat == None) or (cat == cat_name):
+            if cat is None or cat == cat_name:
                 [func_cat_type, key] = classify_category(cat_name, cat_number)
 
                 if not lists[func_cat_type].has_key(key):
@@ -998,9 +978,7 @@ class gl_api(object):
                 names = lists[func_cat_type][key].keys()
                 names.sort()
 
-                for name in names:
-                    functions.append(lists[func_cat_type][key][name])
-
+                functions.extend(lists[func_cat_type][key][name] for name in names)
         return functions.__iter__()
 
 
@@ -1011,17 +989,13 @@ class gl_api(object):
                 max_offset = func.offset
 
 
-        temp = [None for i in range(0, max_offset + 1)]
+        temp = [None for _ in range(0, max_offset + 1)]
         for func in self.functions_by_name.itervalues():
             if func.offset != -1:
                 temp[ func.offset ] = func
 
 
-        list = []
-        for i in range(0, max_offset + 1):
-            if temp[i]:
-                list.append(temp[i])
-
+        list = [temp[i] for i in range(0, max_offset + 1) if temp[i]]
         return list.__iter__();
 
 
@@ -1033,10 +1007,7 @@ class gl_api(object):
         keys = self.enums_by_name.keys()
         keys.sort()
 
-        list = []
-        for enum in keys:
-            list.append( self.enums_by_name[ enum ] )
-
+        list = [self.enums_by_name[ enum ] for enum in keys]
         return list.__iter__()
 
 
@@ -1053,9 +1024,7 @@ class gl_api(object):
             keys = self.categories[cat_type].keys()
             keys.sort()
 
-            for key in keys:
-                list.append(self.categories[cat_type][key])
-
+            list.extend(self.categories[cat_type][key] for key in keys)
         return list.__iter__()
 
 

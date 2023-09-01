@@ -122,44 +122,43 @@ class function_table:
                 break
 
 
-        # If all the remaining bits are used by this node, as is the
-        # case when M is 0 or remaining_bits, the node is a leaf.
-
-        if (M == 0) or (M == remaining_bits):
+        if M in [0, remaining_bits]:
             return [remaining_bits, [], 0, 0]
-        else:
-            children = []
-            count = 1
-            depth = 1
-            all_children_are_nonempty_leaf_nodes = 1
-            for i in range(min_opcode, next_opcode, op_count):
-                n = self.divide_group(i, total + M)
+        children = []
+        count = 1
+        depth = 1
+        all_children_are_nonempty_leaf_nodes = 1
+        for i in range(min_opcode, next_opcode, op_count):
+            n = self.divide_group(i, total + M)
 
-                if not (n[1] == [] and not self.is_empty_leaf(i, n[0])):
-                    all_children_are_nonempty_leaf_nodes = 0
+            if n[1] != [] or self.is_empty_leaf(i, n[0]):
+                all_children_are_nonempty_leaf_nodes = 0
 
-                children.append(n)
-                count += n[2] + 1
+            children.append(n)
+            count += n[2] + 1
 
-                if n[3] >= depth:
-                    depth = n[3] + 1
+            if n[3] >= depth:
+                depth = n[3] + 1
 
             # If all of the child nodes are non-empty leaf nodes, pull
             # them up and make this node a leaf.
 
-            if all_children_are_nonempty_leaf_nodes:
-                return [remaining_bits, [], 0, 0]
-            else:
-                return [M, children, count, depth]
+        return (
+            [remaining_bits, [], 0, 0]
+            if all_children_are_nonempty_leaf_nodes
+            else [M, children, count, depth]
+        )
 
 
     def is_empty_leaf(self, base_opcode, M):
-        for op in range(base_opcode, base_opcode + (1 << M)):
-            if self.functions.has_key(op):
-                return 0
-                break
-
-        return 1
+        return next(
+            (
+                0
+                for op in range(base_opcode, base_opcode + (1 << M))
+                if self.functions.has_key(op)
+            ),
+            1,
+        )
 
 
     def dump_tree(self, node, base_opcode, remaining_bits, base_entry, depth):
@@ -369,7 +368,7 @@ class PrintGlxDispatchTables(glX_proto_common.glx_print_proto):
 
     def printBody(self, api):
         for f in api.functionIterateAll():
-            if not f.ignore and f.vectorequiv == None:
+            if not f.ignore and f.vectorequiv is None:
                 if f.glx_rop != 0:
                     self.rop_functions.append(f.glx_rop, f)
                 if f.glx_sop != 0:

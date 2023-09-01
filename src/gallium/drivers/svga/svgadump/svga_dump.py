@@ -64,7 +64,7 @@ class decl_dumper_t(decl_visitor.decl_visitor_t):
         for variable in class_.variables():
             if variable.name != '':
                 #print 'variable = %r' % variable.name
-                dump_type(self._instance + '.' + variable.name, variable.type)
+                dump_type(f'{self._instance}.{variable.name}', variable.type)
 
     def visit_enumeration(self):
         if enums:

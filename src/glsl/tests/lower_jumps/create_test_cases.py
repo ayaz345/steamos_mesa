@@ -41,25 +41,27 @@ def make_test_case(f_name, ret_type, body):
     check_sexp(body)
     declarations = {}
     def make_declarations(sexp, already_declared = ()):
-        if isinstance(sexp, list):
-            if len(sexp) == 2 and sexp[0] == 'var_ref':
-                if sexp[1] not in already_declared:
-                    declarations[sexp[1]] = [
-                        'declare', ['in'], 'float', sexp[1]]
-            elif len(sexp) == 4 and sexp[0] == 'assign':
-                assert sexp[2][0] == 'var_ref'
-                if sexp[2][1] not in already_declared:
-                    declarations[sexp[2][1]] = [
-                        'declare', ['out'], 'float', sexp[2][1]]
-                make_declarations(sexp[3], already_declared)
-            else:
-                already_declared = set(already_declared)
-                for s in sexp:
-                    if isinstance(s, list) and len(s) >= 4 and \
-                            s[0] == 'declare':
-                        already_declared.add(s[3])
-                    else:
-                        make_declarations(s, already_declared)
+        if not isinstance(sexp, list):
+            return
+        if len(sexp) == 2 and sexp[0] == 'var_ref':
+            if sexp[1] not in already_declared:
+                declarations[sexp[1]] = [
+                    'declare', ['in'], 'float', sexp[1]]
+        elif len(sexp) == 4 and sexp[0] == 'assign':
+            assert sexp[2][0] == 'var_ref'
+            if sexp[2][1] not in already_declared:
+                declarations[sexp[2][1]] = [
+                    'declare', ['out'], 'float', sexp[2][1]]
+            make_declarations(sexp[3], already_declared)
+        else:
+            already_declared = set(already_declared)
+            for s in sexp:
+                if isinstance(s, list) and len(s) >= 4 and \
+                        s[0] == 'declare':
+                    already_declared.add(s[3])
+                else:
+                    make_declarations(s, already_declared)
+
     make_declarations(body)
     return declarations.values() + \
         [['function', f_name, ['signature', ret_type, ['parameters'], body]]]
@@ -91,10 +93,7 @@ def gt_zero(var_name):
 
 def return_(value = None):
     """Create a return statement."""
-    if value is not None:
-        return [['return', value]]
-    else:
-        return [['return']]
+    return [['return', value]] if value is not None else [['return']]
 
 def break_():
     """Create a break statement."""
@@ -160,7 +159,7 @@ def complex_if(var_prefix, statements):
     var_prefix.  This can be used to ensure uniqueness.
     """
     check_sexp(statements)
-    return simple_if(var_prefix + 'a', simple_if(var_prefix + 'b', statements))
+    return simple_if(f'{var_prefix}a', simple_if(f'{var_prefix}b', statements))
 
 def declare_execute_flag():
     """Create the statements that lower_jumps.cpp uses to declare and
@@ -195,10 +194,7 @@ def lowered_return_simple(value = None):
     statement to, in situations where it does not need to clear the
     execute flag.
     """
-    if value:
-        result = assign_x('return_value', value)
-    else:
-        result = []
+    result = assign_x('return_value', value) if value else []
     return result + assign_x('return_flag', const_bool(True))
 
 def lowered_return(value = None):
@@ -261,13 +257,12 @@ def bash_quote(*args):
     """
     def quote_word(word):
         for c in word:
-            if not (c.isalpha() or c.isdigit() or c in '@%_-+=:,./'):
+            if not c.isalpha() and not c.isdigit() and c not in '@%_-+=:,./':
                 break
         else:
-            if not word:
-                return "''"
-            return word
+            return "''" if not word else word
         return "'{0}'".format(word.replace("'", "'\"'\"'"))
+
     return ' '.join(quote_word(word) for word in args)
 
 def create_test_case(doc_string, input_sexp, expected_sexp, test_name,
@@ -465,7 +460,13 @@ def test_lower_breaks_1():
                  break_())
             ))
     expected_sexp = input_sexp
-    create_test_case(doc_string, input_sexp, expected_sexp, 'lower_breaks_1', lower_break=True)
+    create_test_case(
+        doc_string,
+        expected_sexp,
+        expected_sexp,
+        'lower_breaks_1',
+        lower_break=True,
+    )
 
 def test_lower_breaks_2():
     doc_string = """If a loop contains a conditional break at the bottom of it,
@@ -476,7 +477,13 @@ def test_lower_breaks_2():
                  simple_if('b', break_()))
             ))
     expected_sexp = input_sexp
-    create_test_case(doc_string, input_sexp, expected_sexp, 'lower_breaks_2', lower_break=True)
+    create_test_case(
+        doc_string,
+        expected_sexp,
+        expected_sexp,
+        'lower_breaks_2',
+        lower_break=True,
+    )
 
 def test_lower_breaks_3():
     doc_string = """If a loop contains a conditional break at the bottom of it,
@@ -489,7 +496,13 @@ def test_lower_breaks_3():
                                  break_())))
             ))
     expected_sexp = input_sexp
-    create_test_case(doc_string, input_sexp, expected_sexp, 'lower_breaks_3', lower_break=True)
+    create_test_case(
+        doc_string,
+        expected_sexp,
+        expected_sexp,
+        'lower_breaks_3',
+        lower_break=True,
+    )
 
 def test_lower_breaks_4():
     doc_string = """If a loop contains a conditional break at the bottom of it,
@@ -500,7 +513,13 @@ def test_lower_breaks_4():
                  simple_if('b', [], break_()))
             ))
     expected_sexp = input_sexp
-    create_test_case(doc_string, input_sexp, expected_sexp, 'lower_breaks_4', lower_break=True)
+    create_test_case(
+        doc_string,
+        expected_sexp,
+        expected_sexp,
+        'lower_breaks_4',
+        lower_break=True,
+    )
 
 def test_lower_breaks_5():
     doc_string = """If a loop contains a conditional break at the bottom of it,
@@ -513,7 +532,13 @@ def test_lower_breaks_5():
                                      break_())))
             ))
     expected_sexp = input_sexp
-    create_test_case(doc_string, input_sexp, expected_sexp, 'lower_breaks_5', lower_break=True)
+    create_test_case(
+        doc_string,
+        expected_sexp,
+        expected_sexp,
+        'lower_breaks_5',
+        lower_break=True,
+    )
 
 def test_lower_breaks_6():
     doc_string = """If a loop contains conditional breaks and continues, and

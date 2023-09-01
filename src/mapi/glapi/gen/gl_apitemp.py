@@ -257,11 +257,10 @@ _glapi_proc UNUSED_TABLE_NAME[] = {"""
                     proto_names.append(name)
                 else:
                     proto_stubs.append(name)
+            elif func.is_static_entry_point(name):
+                normal_names.append(name)
             else:
-                if func.is_static_entry_point(name):
-                    normal_names.append(name)
-                else:
-                    normal_stubs.append(name)
+                normal_stubs.append(name)
         # there can be at most one stub for a function
         if normal_stubs:
             normal_names.append(normal_stubs[0])

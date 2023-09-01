@@ -37,11 +37,11 @@ import u_format_pack
 
 
 def layout_map(layout):
-    return 'UTIL_FORMAT_LAYOUT_' + str(layout).upper()
+    return f'UTIL_FORMAT_LAYOUT_{str(layout).upper()}'
 
 
 def colorspace_map(colorspace):
-    return 'UTIL_FORMAT_COLORSPACE_' + str(colorspace).upper()
+    return f'UTIL_FORMAT_COLORSPACE_{str(colorspace).upper()}'
 
 
 colorspace_channels_map = {
@@ -62,10 +62,7 @@ type_map = {
 
 
 def bool_map(value):
-    if value:
-        return "TRUE"
-    else:
-        return "FALSE"
+    return "TRUE" if value else "FALSE"
 
 
 swizzle_map = {

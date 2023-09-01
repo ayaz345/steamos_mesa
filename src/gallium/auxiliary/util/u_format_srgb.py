@@ -44,17 +44,11 @@ import struct
 
 
 def srgb_to_linear(x):
-    if x <= 0.04045:
-        return x / 12.92
-    else:
-        return math.pow((x + 0.055) / 1.055, 2.4)
+    return x / 12.92 if x <= 0.04045 else math.pow((x + 0.055) / 1.055, 2.4)
 
 
 def linear_to_srgb(x):
-    if x >= 0.0031308:
-        return 1.055 * math.pow(x, 0.41666666) - 0.055
-    else:
-        return 12.92 * x
+    return 1.055 * math.pow(x, 0.41666666) - 0.055 if x >= 0.0031308 else 12.92 * x
 
 
 def generate_srgb_tables():

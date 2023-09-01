@@ -56,7 +56,7 @@ class ABIEntry(object):
         self.xml_data = xml_data
 
     def c_prototype(self):
-        return '%s %s(%s)' % (self.c_return(), self.name, self.c_params())
+        return f'{self.c_return()} {self.name}({self.c_params()})'
 
     def c_return(self):
         ret = self.ret
@@ -79,10 +79,7 @@ class ABIEntry(object):
 
     def c_args(self):
         """Return the argument list used in the entry invocation."""
-        c_args = []
-        for t, n, a in self.params:
-            c_args.append(n)
-
+        c_args = [n for t, n, a in self.params]
         return ", ".join(c_args)
 
     def _parse(self, cols):
@@ -95,12 +92,8 @@ class ABIEntry(object):
         params = []
         if not cols:
             raise Exception(cols)
-        elif len(cols) == 1 and cols[0] == 'void':
-            pass
-        else:
-            for val in cols:
-                params.append(self._parse_param(val))
-
+        elif len(cols) != 1 or cols[0] != 'void':
+            params.extend(self._parse_param(val) for val in cols)
         self.ret = ret
         self.name = name
         self.params = params
@@ -108,7 +101,7 @@ class ABIEntry(object):
     def _parse_param(self, c_param):
         m = self._match_c_param.match(c_param)
         if not m:
-            raise Exception('unrecognized param ' + c_param)
+            raise Exception(f'unrecognized param {c_param}')
 
         c_type = m.group('type').strip()
         c_name = m.group('name')
@@ -129,8 +122,8 @@ class ABIEntry(object):
             elif not other.alias:
                 res = 1
 
-            if not res:
-                res = cmp(self.name, other.name)
+        if not res:
+            res = cmp(self.name, other.name)
 
         return res
 
@@ -158,21 +151,15 @@ def abi_parse_xml(xml):
                 try:
                     alias = entry_dict[attrs['alias']]
                 except KeyError:
-                    raise Exception('failed to alias %s' % attrs['alias'])
+                    raise Exception(f"failed to alias {attrs['alias']}")
                 if alias.alias:
-                    raise Exception('recursive alias %s' % ent.name)
+                    raise Exception(f'recursive alias {ent.name}')
                 attrs['alias'] = alias
-            if attrs['handcode']:
-                attrs['handcode'] = func.static_glx_name(name)
-            else:
-                attrs['handcode'] = None
-
+            attrs['handcode'] = func.static_glx_name(name) if attrs['handcode'] else None
             if entry_dict.has_key(name):
-                raise Exception('%s is duplicated' % (name))
+                raise Exception(f'{name} is duplicated')
 
-            cols = []
-            cols.append(func.return_type)
-            cols.append(name)
+            cols = [func.return_type, name]
             params = func.get_parameter_string(name)
             cols.extend([p.strip() for p in params.split(',')])
 
@@ -206,10 +193,8 @@ def abi_parse_line(line):
             attrs['alias'] = val[6:]
         elif val.startswith('handcode='):
             attrs['handcode'] = val[9:]
-        elif not val:
-            pass
-        else:
-            raise Exception('unknown attribute %s' % val)
+        elif val:
+            raise Exception(f'unknown attribute {val}')
     cols[0] = vals[0]
 
     return (attrs, cols)
@@ -230,9 +215,9 @@ def abi_parse(filename):
             try:
                 alias = entry_dict[attrs['alias']]
             except KeyError:
-                raise Exception('failed to alias %s' % attrs['alias'])
+                raise Exception(f"failed to alias {attrs['alias']}")
             if alias.alias:
-                raise Exception('recursive alias %s' % ent.name)
+                raise Exception(f'recursive alias {ent.name}')
             slot = alias.slot
             attrs['alias'] = alias
         else:
@@ -242,11 +227,11 @@ def abi_parse(filename):
         if attrs['slot'] < 0:
             attrs['slot'] = slot
         elif attrs['slot'] != slot:
-            raise Exception('invalid slot in %s' % (line))
+            raise Exception(f'invalid slot in {line}')
 
         ent = ABIEntry(cols, attrs)
         if entry_dict.has_key(ent.name):
-            raise Exception('%s is duplicated' % (ent.name))
+            raise Exception(f'{ent.name} is duplicated')
         entry_dict[ent.name] = ent
 
     entries = entry_dict.values()
@@ -277,9 +262,9 @@ def abi_sanity_check(entries):
                         ent.handcode, handcode)
 
             if ent.name in all_names:
-                raise Exception('%s is duplicated' % (ent.name))
+                raise Exception(f'{ent.name} is duplicated')
             if ent.alias and ent.alias.name not in all_names:
-                raise Exception('failed to alias %s' % (ent.alias.name))
+                raise Exception(f'failed to alias {ent.alias.name}')
             all_names.append(ent.name)
             i += 1
     if i < len(entries):
@@ -319,8 +304,8 @@ class ABIPrinter(object):
 
     def c_public_includes(self):
         """Return includes of the client API headers."""
-        defines = ['#define ' + d for d in self.api_defines]
-        includes = ['#include ' + h for h in self.api_headers]
+        defines = [f'#define {d}' for d in self.api_defines]
+        includes = [f'#include {h}' for h in self.api_headers]
         return "\n".join(defines + includes)
 
     def need_entry_point(self, ent):
@@ -336,7 +321,7 @@ class ABIPrinter(object):
             if not self.need_entry_point(ent):
                 continue
             export = self.api_call if not ent.hidden else ''
-            decls.append(self._c_decl(ent, prefix, True, export) + ';')
+            decls.append(f'{self._c_decl(ent, prefix, True, export)};')
 
         return "\n".join(decls)
 
@@ -351,7 +336,7 @@ class ABIPrinter(object):
         """Return the array initializer for mapi_table_fill."""
         entries = [self._c_function(ent, prefix)
                 for ent in self.entries if not ent.alias]
-        pre = self.indent + '(mapi_proc) '
+        pre = f'{self.indent}(mapi_proc) '
         return pre + (',\n' + pre).join(entries)
 
     def c_mapi_table_spec(self):
@@ -376,9 +361,7 @@ class ABIPrinter(object):
                 False: { True: '"%s%s"', False: '%s%s' },
         }
         fmt = formats[prefix.isupper()][stringify]
-        name = ent.name
-        if mangle and ent.hidden:
-            name = '_dispatch_stub_' + str(ent.slot)
+        name = f'_dispatch_stub_{str(ent.slot)}' if mangle and ent.hidden else ent.name
         return fmt % (prefix, name)
 
     def _c_function_call(self, ent, prefix):
@@ -387,35 +370,33 @@ class ABIPrinter(object):
             # _c_function does not handle this case
             formats = { True: '%s(%s)', False: '%s%s' }
             fmt = formats[prefix.isupper()]
-            name = fmt % (prefix, ent.handcode)
+            return fmt % (prefix, ent.handcode)
         elif self.need_entry_point(ent):
-            name = self._c_function(ent, prefix, True)
+            return self._c_function(ent, prefix, True)
         else:
-            name = self._c_function(ent.alias, prefix, True)
-        return name
+            return self._c_function(ent.alias, prefix, True)
 
     def _c_decl(self, ent, prefix, mangle=False, export=''):
         """Return the C declaration for the entry."""
-        decl = '%s %s %s(%s)' % (ent.c_return(), self.api_entry,
-                self._c_function(ent, prefix, mangle), ent.c_params())
+        decl = f'{ent.c_return()} {self.api_entry} {self._c_function(ent, prefix, mangle)}({ent.c_params()})'
         if export:
-            decl = export + ' ' + decl
+            decl = f'{export} {decl}'
         if self.api_attrs:
-            decl += ' ' + self.api_attrs
+            decl += f' {self.api_attrs}'
 
         return decl
 
     def _c_cast(self, ent):
         """Return the C cast for the entry."""
-        cast = '%s (%s *)(%s)' % (
-                ent.c_return(), self.api_entry, ent.c_params())
-
-        return cast
+        return f'{ent.c_return()} ({self.api_entry} *)({ent.c_params()})'
 
     def c_private_declarations(self, prefix):
         """Return the declarations of private functions."""
-        decls = [self._c_decl(ent, prefix) + ';'
-                for ent in self.entries if not ent.alias]
+        decls = [
+            f'{self._c_decl(ent, prefix)};'
+            for ent in self.entries
+            if not ent.alias
+        ]
 
         return "\n".join(decls)
 
@@ -438,13 +419,12 @@ class ABIPrinter(object):
             if ent.ret:
                 ret = 'return '
             stmt1 = self.indent
-            stmt1 += 'const struct mapi_table *_tbl = %s();' % (
-                    self.current_get)
+            stmt1 += f'const struct mapi_table *_tbl = {self.current_get}();'
             stmt2 = self.indent
             stmt2 += 'mapi_func _func = ((const mapi_func *) _tbl)[%d];' % (
                     ent.slot)
             stmt3 = self.indent
-            stmt3 += '%s((%s) _func)(%s);' % (ret, cast, ent.c_args())
+            stmt3 += f'{ret}(({cast}) _func)({ent.c_args()});'
 
             disp = '%s\n{\n%s\n%s\n%s\n}' % (proto, stmt1, stmt2, stmt3)
 
@@ -462,8 +442,7 @@ class ABIPrinter(object):
             if ent.alias:
                 continue
 
-            name = '%s(mapi_func) %s' % (self.indent,
-                    self._c_function_call(ent, prefix))
+            name = f'{self.indent}(mapi_func) {self._c_function_call(ent, prefix)}'
             names.append(name)
 
         return ',\n'.join(names)
@@ -479,20 +458,21 @@ class ABIPrinter(object):
         count = 0
         for ent in sorted_entries:
             offsets[ent] = count
-            pool.append('%s' % (ent.name))
+            pool.append(f'{ent.name}')
             count += len(ent.name) + 1
 
-        pool_str =  self.indent + '"' + \
-                ('\\0"\n' + self.indent + '"').join(pool) + '";'
+        pool_str = (
+            f'{self.indent}"' + ('\\0"\n' + self.indent + '"').join(pool)
+        ) + '";'
         return (pool_str, offsets)
 
     def c_stub_initializer(self, prefix, pool_offsets):
         """Return the initializer for struct mapi_stub array."""
-        stubs = []
-        for ent in self.entries_sorted_by_names:
-            stubs.append('%s{ (void *) %d, %d, NULL }' % (
-                self.indent, pool_offsets[ent], ent.slot))
-
+        stubs = [
+            '%s{ (void *) %d, %d, NULL }'
+            % (self.indent, pool_offsets[ent], ent.slot)
+            for ent in self.entries_sorted_by_names
+        ]
         return ',\n'.join(stubs)
 
     def c_noop_functions(self, prefix, warn_prefix):
@@ -507,17 +487,16 @@ class ABIPrinter(object):
             stmt1 = self.indent;
             space = ''
             for t, n, a in ent.params:
-                stmt1 += "%s(void) %s;" % (space, n)
+                stmt1 += f"{space}(void) {n};"
                 space = ' '
 
             if ent.params:
                 stmt1 += '\n';
 
-            stmt1 += self.indent + '%s(%s);' % (self.noop_warn,
-                    self._c_function(ent, warn_prefix, False, True))
+            stmt1 += f'{self.indent}{self.noop_warn}({self._c_function(ent, warn_prefix, False, True)});'
 
             if ent.ret:
-                stmt2 = self.indent + 'return (%s) 0;' % (ent.ret)
+                stmt2 = f'{self.indent}return ({ent.ret}) 0;'
                 noop = '%s\n{\n%s\n%s\n}' % (proto, stmt1, stmt2)
             else:
                 noop = '%s\n{\n%s\n}' % (proto, stmt1)
@@ -535,7 +514,7 @@ class ABIPrinter(object):
 
         entries.extend([self.noop_generic] * ABI_NUM_DYNAMIC_ENTRIES)
 
-        pre = self.indent + '(mapi_func) '
+        pre = f'{self.indent}(mapi_func) '
         return pre + (',\n' + pre).join(entries)
 
     def c_asm_gcc(self, prefix, no_hidden):
@@ -557,13 +536,20 @@ class ABIPrinter(object):
                 asm.append('".hidden "%s"\\n"' % (name))
 
             if ent.alias and not (ent.alias.hidden and no_hidden):
-                asm.append('".globl "%s"\\n"' % (name))
-                asm.append('".set "%s", "%s"\\n"' % (name,
-                    self._c_function(ent.alias, prefix, True, True)))
+                asm.extend(
+                    (
+                        '".globl "%s"\\n"' % (name),
+                        '".set "%s", "%s"\\n"'
+                        % (name, self._c_function(ent.alias, prefix, True, True)),
+                    )
+                )
             else:
-                asm.append('STUB_ASM_ENTRY(%s)"\\n"' % (name))
-                asm.append('"\\t"STUB_ASM_CODE("%d")"\\n"' % (ent.slot))
-
+                asm.extend(
+                    (
+                        'STUB_ASM_ENTRY(%s)"\\n"' % (name),
+                        '"\\t"STUB_ASM_CODE("%d")"\\n"' % (ent.slot),
+                    )
+                )
             if ent.handcode:
                 asm.append('#endif')
             asm.append('')
@@ -718,7 +704,7 @@ class GLAPIPrinter(ABIPrinter):
         pass
 
     def _get_c_header(self):
-        header = """#ifndef _GLAPI_TMP_H_
+        return """#ifndef _GLAPI_TMP_H_
 #define _GLAPI_TMP_H_
 #ifdef USE_MGL_NAMESPACE
 #define GLAPI_PREFIX(func)  mgl##func
@@ -730,8 +716,6 @@ class GLAPIPrinter(ABIPrinter):
 
 typedef int GLclampx;
 #endif /* _GLAPI_TMP_H_ */"""
-
-        return header
 
 class ES1APIPrinter(GLAPIPrinter):
     """OpenGL ES 1.x API Printer"""
@@ -749,12 +733,10 @@ class ES1APIPrinter(GLAPIPrinter):
         ent.handcode = False
 
     def _get_c_header(self):
-        header = """#ifndef _GLAPI_TMP_H_
+        return """#ifndef _GLAPI_TMP_H_
 #define _GLAPI_TMP_H_
 typedef int GLclampx;
 #endif /* _GLAPI_TMP_H_ */"""
-
-        return header
 
 class ES2APIPrinter(GLAPIPrinter):
     """OpenGL ES 2.x API Printer"""
@@ -772,12 +754,10 @@ class ES2APIPrinter(GLAPIPrinter):
         ent.handcode = False
 
     def _get_c_header(self):
-        header = """#ifndef _GLAPI_TMP_H_
+        return """#ifndef _GLAPI_TMP_H_
 #define _GLAPI_TMP_H_
 typedef int GLclampx;
 #endif /* _GLAPI_TMP_H_ */"""
-
-        return header
 
 class SharedGLAPIPrinter(GLAPIPrinter):
     """Shared GLAPI API Printer"""
@@ -799,12 +779,10 @@ class SharedGLAPIPrinter(GLAPIPrinter):
         ent.handcode = False
 
     def _get_c_header(self):
-        header = """#ifndef _GLAPI_TMP_H_
+        return """#ifndef _GLAPI_TMP_H_
 #define _GLAPI_TMP_H_
 typedef int GLclampx;
 #endif /* _GLAPI_TMP_H_ */"""
-
-        return header
 
 class VGAPIPrinter(ABIPrinter):
     """OpenVG API Printer"""
@@ -828,10 +806,15 @@ def parse_args():
     modes = ['lib', 'app']
 
     parser = OptionParser(usage='usage: %prog [options] <filename>')
-    parser.add_option('-p', '--printer', dest='printer',
-            help='printer to use: %s' % (", ".join(printers)))
-    parser.add_option('-m', '--mode', dest='mode',
-            help='target user: %s' % (", ".join(modes)))
+    parser.add_option(
+        '-p',
+        '--printer',
+        dest='printer',
+        help=f'printer to use: {", ".join(printers)}',
+    )
+    parser.add_option(
+        '-m', '--mode', dest='mode', help=f'target user: {", ".join(modes)}'
+    )
 
     options, args = parser.parse_args()
     if not args or options.printer not in printers or \

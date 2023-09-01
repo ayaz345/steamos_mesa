@@ -57,16 +57,8 @@ class glx_enum(gl_XML.gl_enum):
                 c = child.nsProp( "count", None )
                 m = child.nsProp( "mode", None )
 
-                if not c:
-                    c = self.default_count
-                else:
-                    c = int(c)
-
-                if m == "get":
-                    mode = 0
-                else:
-                    mode = 1
-
+                c = self.default_count if not c else int(c)
+                mode = 0 if m == "get" else 1
                 if not self.functions.has_key(n):
                     self.functions[ n ] = [c, mode]
 
@@ -171,7 +163,9 @@ class glx_function(gl_XML.gl_function):
                     self.server_handcode = 1
                     self.client_handcode = 0
                 else:
-                    raise RuntimeError('Invalid handcode mode "%s" in function "%s".' % (handcode, self.name))
+                    raise RuntimeError(
+                        f'Invalid handcode mode "{handcode}" in function "{self.name}".'
+                    )
 
                 self.ignore               = gl_XML.is_attr_true( child, 'ignore' )
                 self.can_be_large         = gl_XML.is_attr_true( child, 'large' )
@@ -187,7 +181,9 @@ class glx_function(gl_XML.gl_function):
 
         for param in self.parameters:
             if param.is_output and self.glx_rop != 0:
-                raise RuntimeError("Render / RenderLarge commands cannot have outputs (%s)." % (self.name))
+                raise RuntimeError(
+                    f"Render / RenderLarge commands cannot have outputs ({self.name})."
+                )
 
         return
 
@@ -308,20 +304,12 @@ class glx_function(gl_XML.gl_function):
 
 
     def parameterIterateCounters(self):
-        temp = []
-        for name in self.counter_list:
-            temp.append( self.parameters_by_name[ name ] )
-
+        temp = [self.parameters_by_name[ name ] for name in self.counter_list]
         return temp.__iter__()
 
 
     def parameterIterateOutputs(self):
-        temp = []
-        for p in self.parameters:
-            if p.is_output:
-                temp.append( p )
-
-        return temp
+        return [p for p in self.parameters if p.is_output]
 
 
     def command_fixed_length(self):
@@ -364,7 +352,7 @@ class glx_function(gl_XML.gl_function):
                 # FIXME adds some extra diffs to the generated
                 # FIXME code.
 
-                size_string = size_string + " + __GLX_PAD(%s)" % (p.size_string(1))
+                size_string = f"{size_string} + __GLX_PAD({p.size_string(1)})"
 
         return size_string
 
@@ -391,10 +379,7 @@ class glx_function(gl_XML.gl_function):
         X_GLsop_NewList) is returned."""
 
         if self.glx_vendorpriv != 0:
-            if self.needs_reply():
-                return 17
-            else:
-                return 16
+            return 17 if self.needs_reply() else 16
         else:
             return self.opcode_value()
 
@@ -424,10 +409,7 @@ class glx_function(gl_XML.gl_function):
         name of the equivalent vector (e.g., glVertex3fv for
         glVertex3f) function."""
 
-        if self.vectorequiv == None:
-            return self.name
-        else:
-            return self.vectorequiv
+        return self.name if self.vectorequiv is None else self.vectorequiv
 
 
     def opcode_name(self):
@@ -440,20 +422,20 @@ class glx_function(gl_XML.gl_function):
 
 
         if self.glx_rop != 0:
-            return "X_GLrop_%s" % (self.opcode_rop_basename())
+            return f"X_GLrop_{self.opcode_rop_basename()}"
         elif self.glx_sop != 0:
-            return "X_GLsop_%s" % (self.name)
+            return f"X_GLsop_{self.name}"
         elif self.glx_vendorpriv != 0:
-            return "X_GLvop_%s" % (self.name)
+            return f"X_GLvop_{self.name}"
         else:
-            raise RuntimeError('Function "%s" has no opcode.' % (self.name))
+            raise RuntimeError(f'Function "{self.name}" has no opcode.')
 
 
     def opcode_vendor_name(self, name):
         if name in self.glx_vendorpriv_names:
-            return "X_GLvop_%s" % (name)
+            return f"X_GLvop_{name}"
         else:
-            raise RuntimeError('Function "%s" has no VendorPrivate opcode.' % (name))
+            raise RuntimeError(f'Function "{name}" has no VendorPrivate opcode.')
 
 
     def opcode_real_name(self):
@@ -466,13 +448,12 @@ class glx_function(gl_XML.gl_function):
         single or render commands 'X_GLsop' or 'X_GLrop' plus the
         name of the function returned."""
 
-        if self.glx_vendorpriv != 0:
-            if self.needs_reply():
-                return "X_GLXVendorPrivateWithReply"
-            else:
-                return "X_GLXVendorPrivate"
-        else:
+        if self.glx_vendorpriv == 0:
             return self.opcode_name()
+        if self.needs_reply():
+            return "X_GLXVendorPrivateWithReply"
+        else:
+            return "X_GLXVendorPrivate"
 
 
     def needs_reply(self):
@@ -558,10 +539,7 @@ class glx_function_iterator(object):
     def next(self):
         f = self.iterator.next()
 
-        if f.client_supported_for_indirect():
-            return f
-        else:
-            return self.next()
+        return f if f.client_supported_for_indirect() else self.next()
 
 
 class glx_api(gl_XML.gl_api):

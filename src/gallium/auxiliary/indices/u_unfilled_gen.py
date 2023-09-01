@@ -93,10 +93,7 @@ static u_translate_func translate_line[IN_COUNT][OUT_COUNT][PRIM_COUNT];
 '''
 
 def vert( intype, outtype, v0 ):
-    if intype == GENERATE:
-        return '(' + outtype + ')(' + v0 + ')'
-    else:
-        return '(' + outtype + ')in[' + v0 + ']'
+    return f'({outtype})({v0})' if intype == GENERATE else f'({outtype})in[{v0}]'
 
 def line( intype, outtype, ptr, v0, v1 ):
     print '      (' + ptr + ')[0] = ' + vert( intype, outtype, v0 ) + ';'
@@ -108,20 +105,20 @@ def line( intype, outtype, ptr, v0, v1 ):
 # 
 def do_tri( intype, outtype, ptr, v0, v1, v2 ):
     line( intype, outtype, ptr, v0, v1 )
-    line( intype, outtype, ptr + '+2', v1, v2 )
-    line( intype, outtype, ptr + '+4', v2, v0 )
+    line(intype, outtype, f'{ptr}+2', v1, v2)
+    line(intype, outtype, f'{ptr}+4', v2, v0)
 
 def do_quad( intype, outtype, ptr, v0, v1, v2, v3 ):
     line( intype, outtype, ptr, v0, v1 )
-    line( intype, outtype, ptr + '+2', v1, v2 )
-    line( intype, outtype, ptr + '+4', v2, v3 )
-    line( intype, outtype, ptr + '+6', v3, v0 )
+    line(intype, outtype, f'{ptr}+2', v1, v2)
+    line(intype, outtype, f'{ptr}+4', v2, v3)
+    line(intype, outtype, f'{ptr}+6', v3, v0)
 
 def name(intype, outtype, prim):
     if intype == GENERATE:
-        return 'generate_' + prim + '_' + outtype
+        return f'generate_{prim}_{outtype}'
     else:
-        return 'translate_' + prim + '_' + intype + '2' + outtype
+        return f'translate_{prim}_{intype}2{outtype}'
 
 def preamble(intype, outtype, prim):
     print 'static void ' + name( intype, outtype, prim ) + '('

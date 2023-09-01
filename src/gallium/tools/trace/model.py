@@ -178,7 +178,7 @@ class PrettyPrinter:
             return
 
         if isinstance(node.value, basestring):
-            self.formatter.literal('"' + node.value + '"')
+            self.formatter.literal(f'"{node.value}"')
             return
 
         self.formatter.literal(repr(node.value))
@@ -213,9 +213,9 @@ class PrettyPrinter:
         self.formatter.address(node.address)
     
     def visit_call(self, node):
-        self.formatter.text('%s ' % node.no)
+        self.formatter.text(f'{node.no} ')
         if node.klass is not None:
-            self.formatter.function(node.klass + '::' + node.method)
+            self.formatter.function(f'{node.klass}::{node.method}')
         else:
             self.formatter.function(node.method)
         self.formatter.text('(')

@@ -35,12 +35,12 @@ def convertStringForXCB(str):
     i = 0
     while i < len(str):
         if str[i:i+3] in special:
-            tmp = '%s_%s' % (tmp, string.lower(str[i:i+3]))
-            i = i + 2;
+            tmp = f'{tmp}_{string.lower(str[i:i + 3])}'
+            i += 2;
         elif str[i].isupper():
-            tmp = '%s_%s' % (tmp, string.lower(str[i]))
+            tmp = f'{tmp}_{string.lower(str[i])}'
         else:
-            tmp = '%s%s' % (tmp, str[i])
+            tmp = f'{tmp}{str[i]}'
         i += 1
     return tmp
 
@@ -103,19 +103,18 @@ class glx_pixel_function_stub(glX_XML.glx_function):
                 self.images.append(p)
                 p.height = "height"
 
-                if p.img_yoff == None:
+                if p.img_yoff is None:
                     p.img_yoff = "yoffset"
 
                 if p.depth:
-                    if p.extent == None:
+                    if p.extent is None:
                         p.extent = "extent"
 
-                    if p.img_woff == None:
+                    if p.img_woff is None:
                         p.img_woff = "woffset"
 
 
-            pad_name = func.pad_after(p)
-            if pad_name:
+            if pad_name := func.pad_after(p):
                 pad = copy.copy(p)
                 pad.name = pad_name
                 self.parameters.append(pad)
@@ -325,14 +324,10 @@ const GLuint __glXDefaultPixelStore[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 1 };
             # glTexImage2D.
 
             if func.glx_rop != 0:
-                do_it = 0
-                for image in func.get_images():
-                    if image.img_pad_dimensions:
-                        do_it = 1
-                        break
-
-
-                if do_it:
+                if do_it := next(
+                    (1 for image in func.get_images() if image.img_pad_dimensions),
+                    0,
+                ):
                     [h, n] = hash_pixel_function(func)
 
 
@@ -495,7 +490,7 @@ generic_%u_byte( GLint rop, const void * ptr )
                 if p.is_variable_length():
                     temp = p.size_string()
                     if extra_offset:
-                        extra_offset += " + %s" % (temp)
+                        extra_offset += f" + {temp}"
                     else:
                         extra_offset = temp
 

@@ -9,8 +9,8 @@ import sphinx.addnodes
 def parse_envvar(env, sig, signode):
     envvar, t, default = sig.split(" ", 2)
     envvar = envvar.strip().upper()
-    t = " Type: %s" % t.strip(" <>").lower()
-    default = " Default: %s" % default.strip(" ()")
+    t = f' Type: {t.strip(" <>").lower()}'
+    default = f' Default: {default.strip(" ()")}'
     signode += sphinx.addnodes.desc_name(envvar, envvar)
     signode += sphinx.addnodes.desc_type(t, t)
     signode += sphinx.addnodes.desc_annotation(default, default)
@@ -19,7 +19,7 @@ def parse_envvar(env, sig, signode):
 def parse_opcode(env, sig, signode):
     opcode, desc = sig.split("-", 1)
     opcode = opcode.strip().upper()
-    desc = " (%s)" % desc.strip()
+    desc = f" ({desc.strip()})"
     signode += sphinx.addnodes.desc_name(opcode, opcode)
     signode += sphinx.addnodes.desc_annotation(desc, desc)
     return opcode
